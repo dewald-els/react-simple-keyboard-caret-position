@@ -37,10 +37,7 @@ const findNewCaretPosition = (prevDigits: Digit[], newDigits: Digit[]): number |
 	const newDigitsClean = newDigits.filter(d => isDigit(d.value));
 	const prevDigitsClean = prevDigits.filter(d => isDigit(d.value));
 
-	console.log("newDigitsClean", newDigitsClean);
-	console.log("prevDigitsClean", prevDigitsClean);
-
-	if (newDigitsClean.length > prevDigitsClean.length) {
+	if (newDigitsClean.length > prevDigitsClean.length) { // Adding digits
 		for (let i = 0; newDigitsClean.length; i++) {
 			const newDigit = newDigitsClean[i];
 			const prevDigit = prevDigitsClean[i];
@@ -88,6 +85,13 @@ const findNewCaretPosition = (prevDigits: Digit[], newDigits: Digit[]): number |
 
 };
 
+const objectsEqual = (a: any, b: any) => {
+	try {
+		return JSON.stringify(a) === JSON.stringify(b);
+	} catch (e) {
+		console.error("Invalid objects provided to objectCompare");
+	}
+};
 
 const COUNTRY_CODE: CountryCode = "US";
 
@@ -121,15 +125,10 @@ function App() {
 		if (inputRef.current) {
 			const formattedInputValue = formatIncompletePhoneNumber(newInputValue, COUNTRY_CODE);
 			const newDigits = parseToDigits(formattedInputValue);
-
-			if (formattedInputValue === inputRef.current?.value) {
-				return;
-			}
-
 			const newDigitsClean = newDigits.filter(d => isDigit(d.value));
 			const prevDigitsClean = digits.filter(d => isDigit(d.value));
 
-			if (JSON.stringify(newDigitsClean) === JSON.stringify(prevDigitsClean)) {
+			if (objectsEqual(newDigitsClean, prevDigitsClean)) {
 				return;
 			}
 
