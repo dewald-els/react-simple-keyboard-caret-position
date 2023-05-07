@@ -122,14 +122,19 @@ function App() {
 			const formattedInputValue = formatIncompletePhoneNumber(newInputValue, COUNTRY_CODE);
 			const newDigits = parseToDigits(formattedInputValue);
 
+			if (formattedInputValue === inputRef.current?.value) {
+				return;
+			}
+
 			const newDigitsClean = newDigits.filter(d => isDigit(d.value));
 			const prevDigitsClean = digits.filter(d => isDigit(d.value));
-			if (newDigitsClean.length === prevDigitsClean.length) {
+
+			if (JSON.stringify(newDigitsClean) === JSON.stringify(prevDigitsClean)) {
 				return;
 			}
 
 			setDigits(newDigits);
-			const newCaretPosition = findNewCaretPosition(digits, newDigits);
+			const newCaretPosition = findNewCaretPosition(digits, newDigits) ?? caret;
 			inputRef.current.value = formattedInputValue;
 			keyboardRef.current?.setInput(formattedInputValue);
 
