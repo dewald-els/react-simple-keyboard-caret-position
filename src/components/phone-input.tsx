@@ -1,211 +1,122 @@
-import { KeyboardReact, SimpleKeyboard } from "react-simple-keyboard";
+import { KeyboardReact as Keyboard, SimpleKeyboard } from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import { SyntheticEvent, useEffect, useRef, useState } from "react";
-import { CountryCode, formatIncompletePhoneNumber } from "libphonenumber-js";
+import { formatIncompletePhoneNumber } from "libphonenumber-js";
 
-type Digit = {
-	value: string;
-	idx: number;
-	occurrence: number;
+const cleanInput = (formattedInput: string) => {
+	return formattedInput.replace(/[^0-9]/g, "");
 };
 
-const isDigit = (possibleDigit: string): boolean => {
-	return possibleDigit.replace(/[^0-9]/gi, "").length > 0;
+const uncleanInput = (formattedInput: string) => {
+	return formattedInput.replace(/[0-9]/g, "");
 };
 
-const parseToDigits = (inputValue: string): Digit[] => {
-	const occurrences: Record<string, number> = {};
-	const digits: Digit[] = [];
-
-	for (let i = 0; i < inputValue.length; i++) {
-		occurrences[inputValue[i]] = occurrences[inputValue[i]] + 1 || 1;
-		digits.push({
-			value: inputValue[i],
-			idx: i,
-			occurrence: occurrences[inputValue[i]],
-		});
-	}
-
-	return digits;
-};
-
-const findNewCaretPosition = (
-	prevDigits: Digit[],
-	newDigits: Digit[],
-): number | undefined => {
-	const newDigitsClean = newDigits.filter((d) => isDigit(d.value));
-	const prevDigitsClean = prevDigits.filter((d) => isDigit(d.value));
-
-	if (newDigitsClean.length > prevDigitsClean.length) {
-		// Adding digits
-		for (let i = 0; newDigitsClean.length; i++) {
-			const newDigit = newDigitsClean[i];
-			const prevDigit = prevDigitsClean[i];
-			if (!prevDigit) {
-				return newDigit.idx + 1 > newDigits.length
-					? newDigits.length
-					: newDigit.idx + 1;
-			}
-
-			if (
-				prevDigit.value === newDigit.value &&
-				prevDigit.occurrence !== newDigit.occurrence
-			) {
-				return newDigit.idx + 1 > newDigits.length
-					? newDigits.length
-					: newDigit.idx + 1;
-			}
-
-			if (prevDigit.value !== newDigit.value) {
-				return newDigit.idx + 1 > newDigits.length
-					? newDigits.length
-					: newDigit.idx + 1;
-			}
-		}
+const findUpdateType = (prevInput: string, newInput: string) => {
+	if (prevInput.length > newInput.length) {
+		return UpdateType.Delete;
+	} else if (newInput.length > prevInput.length) {
+		return UpdateType.Insert;
 	} else {
-		for (let i = 0; prevDigitsClean.length; i++) {
-			const prevDigit = prevDigitsClean[i];
-			const newDigit = newDigitsClean[i];
-
-			if (!newDigit) {
-				const prevNewDigit = newDigitsClean[i - 1];
-				if (prevNewDigit) {
-					return prevNewDigit.idx + 1;
-				} else {
-					return 0;
-				}
-			}
-
-			// if (newDigit.value === prevDigit.value && newDigit.occurrence !== prevDigit.occurrence) {
-			// TODO: Is this need for deleting?
-			// }
-
-			if (newDigit.value !== prevDigit.value) {
-				const prevNewDigit = newDigitsClean[i - 1];
-				if (prevNewDigit) {
-					return prevNewDigit.idx + 1;
-				} else {
-					return 0;
-				}
-			}
-		}
+		return UpdateType.NoChange;
 	}
 };
 
-const objectsEqual = (a: any, b: any) => {
-	try {
-		return JSON.stringify(a) === JSON.stringify(b);
-	} catch (e) {
-		console.error("Invalid objects provided to objectCompare");
-	}
+const getOffset = (input: string, caret: number) => {
+	const slice = input.slice(0, caret);
+	const specialCharsBefore = slice.replace(/[0-9]/g, "").length;
+	console.log("next char", input[caret + 1]);
+	const nextCharSpecialOffset = input[caret + 1] ? uncleanInput(input[caret + 1]).length : 0;
+	return nextCharSpecialOffset + specialCharsBefore;
 };
 
-const COUNTRY_CODE: CountryCode = "US";
+enum UpdateType {
+	NoChange,
+	Delete,
+	Insert
+}
 
-type PhoneInputProps = {
-	defaultPhoneNumber?: string;
-	onChange: (phoneNumber: string) => void;
-};
+const PhoneInput = () => {
 
-function PhoneInput(props: PhoneInputProps) {
-	const { onChange, defaultPhoneNumber = "" } = props;
-
-	// State
-	const [caret, setCaret] = useState(0);
-	const [digits, setDigits] = useState<Digit[]>([]);
-
-	// Refs
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const keyboardRef = useRef<SimpleKeyboard | null>(null);
 
-	// Effects
-	useEffect(() => {
-		const formatted = formatIncompletePhoneNumber(
-			defaultPhoneNumber,
-			COUNTRY_CODE,
-		);
-		const formattedDigits = parseToDigits(formatted);
-
-		if (inputRef.current) {
-			inputRef.current.value = formatted;
-			inputRef.current?.setSelectionRange(formatted.length, formatted.length);
-		}
-
-		if (keyboardRef.current) {
-			keyboardRef.current.setInput(formatted);
-		}
-
-		setCaret(formatted.length);
-		setDigits(formattedDigits);
-	}, []);
+	const [caret, setCaret] = useState<number>(0);
+	const [currentOffset, setCurrentOffset] = useState<number>(0);
 
 	useEffect(() => {
 		setTimeout(() => {
 			if (inputRef.current) {
-				inputRef.current.setSelectionRange(caret, caret);
-				inputRef.current.focus();
+				inputRef.current?.setSelectionRange(caret, caret);
 			}
-
 			if (keyboardRef.current) {
-				keyboardRef.current.setCaretPosition(caret, caret);
+				keyboardRef.current?.setCaretPosition(caret, caret);
 			}
 		}, 10);
 	}, [caret]);
 
-	// Events
-	const handleInputChange = (newInputValue: string) => {
-		if (inputRef.current) {
-			const formattedInputValue = formatIncompletePhoneNumber(
-				newInputValue,
-				COUNTRY_CODE,
-			);
-			const newDigits = parseToDigits(formattedInputValue);
-			const newDigitsClean = newDigits.filter((d) => isDigit(d.value));
-			const prevDigitsClean = digits.filter((d) => isDigit(d.value));
+	const handleOnChange = (newInput: string) => {
+		if (inputRef.current && keyboardRef.current) {
+			const formattedInput = formatIncompletePhoneNumber(newInput, "US");
+			const prevFormattedInput = inputRef.current.value;
+			const prevCleanInput = cleanInput(inputRef.current.value);
+			const newCleanInput = cleanInput(formattedInput);
 
-			if (objectsEqual(newDigitsClean, prevDigitsClean)) {
-				return;
-			}
+			// Update the current input and keyboard
+			inputRef.current.value = formattedInput;
+			keyboardRef.current?.setInput(formattedInput, "phone");
 
-			setDigits(newDigits);
-			const newCaretPosition = findNewCaretPosition(digits, newDigits) ?? caret;
-			inputRef.current.value = formattedInputValue;
-			keyboardRef.current?.setInput(formattedInputValue);
-			onChange && onChange(formattedInputValue);
-			if (newCaretPosition !== undefined) {
-				setCaret(newCaretPosition < 0 ? 0 : newCaretPosition);
+			// Calculate caret
+			const updateType: UpdateType = findUpdateType(prevCleanInput, newCleanInput);
+
+			if (updateType === UpdateType.Insert) {
+				console.log("insert");
+				let potentialCaret = caret + 1;
+
+				const prevOffset = getOffset(prevFormattedInput, caret);
+				const newOffset = getOffset(formattedInput, potentialCaret);
+
+				console.log("currentCaret", caret);
+				console.log("possibleCaret", potentialCaret);
+				console.log("formatted", formattedInput);
+				console.log("prevOffset", prevOffset);
+				console.log("newOffset", newOffset);
+
+				potentialCaret += newOffset - prevOffset;
+
+				setCaret(potentialCaret);
+			} else if (updateType === UpdateType.Delete) {
+				console.log("delete");
 			} else {
-				setCaret(newInputValue.length);
+				console.log("no change");
 			}
-			if (newCaretPosition === caret) {
-				// This won't trigger the useEffect, so manually update the keyboard's caret.
-				// The keyboard internally increases the caret with 1, so it MUST be manually set.
-				keyboardRef.current?.setCaretPosition(caret, caret);
-			}
+
 		}
 	};
 
 	const handleInputClick = (event: SyntheticEvent<HTMLInputElement>) => {
-		setCaret(event.currentTarget.selectionEnd ?? 0);
+		setCaret(event.currentTarget.selectionEnd ?? event.currentTarget.value.length);
 	};
 
 	return (
 		<>
-			<input
-				type="tel"
-				placeholder="Tel"
-				ref={inputRef}
-				onClick={handleInputClick}
-			/>
-			<KeyboardReact
-				keyboardRef={(r) => (keyboardRef.current = r)}
-				onChange={handleInputChange}
+			<div>
+				<input id={"phone"} name={"phone"} placeholder={"Phone number"} ref={inputRef} onClick={handleInputClick} />
+			</div>
+			<Keyboard
+				keyboardRef={r => keyboardRef.current = r}
+				inputName={"phone"}
+				onChange={handleOnChange}
 				layout={{
-					default: ["1 2 3", "4 5 6", "7 8 9", "{bksp} 0 {enter}"],
+					default: [
+						"1 2 3",
+						"4 5 6",
+						"7 8 9",
+						"{bksp} 0 {enter}",
+					],
 				}}
 			/>
 		</>
 	);
-}
+};
 
 export default PhoneInput;
