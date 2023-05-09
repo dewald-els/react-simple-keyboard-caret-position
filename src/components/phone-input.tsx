@@ -3,19 +3,17 @@ import "react-simple-keyboard/build/css/index.css";
 import { SyntheticEvent, useEffect, useRef, useState } from "react";
 import { CountryCode, formatIncompletePhoneNumber } from "libphonenumber-js";
 
-
 type Digit = {
 	value: string;
 	idx: number;
 	occurrence: number;
-}
+};
 
 const isDigit = (possibleDigit: string): boolean => {
 	return possibleDigit.replace(/[^0-9]/gi, "").length > 0;
 };
 
 const parseToDigits = (inputValue: string): Digit[] => {
-
 	const occurrences: Record<string, number> = {};
 	const digits: Digit[] = [];
 
@@ -31,25 +29,37 @@ const parseToDigits = (inputValue: string): Digit[] => {
 	return digits;
 };
 
-const findNewCaretPosition = (prevDigits: Digit[], newDigits: Digit[]): number | undefined => {
+const findNewCaretPosition = (
+	prevDigits: Digit[],
+	newDigits: Digit[],
+): number | undefined => {
+	const newDigitsClean = newDigits.filter((d) => isDigit(d.value));
+	const prevDigitsClean = prevDigits.filter((d) => isDigit(d.value));
 
-	const newDigitsClean = newDigits.filter(d => isDigit(d.value));
-	const prevDigitsClean = prevDigits.filter(d => isDigit(d.value));
-
-	if (newDigitsClean.length > prevDigitsClean.length) { // Adding digits
+	if (newDigitsClean.length > prevDigitsClean.length) {
+		// Adding digits
 		for (let i = 0; newDigitsClean.length; i++) {
 			const newDigit = newDigitsClean[i];
 			const prevDigit = prevDigitsClean[i];
 			if (!prevDigit) {
-				return newDigit.idx + 1 > newDigits.length ? newDigits.length : newDigit.idx + 1;
+				return newDigit.idx + 1 > newDigits.length
+					? newDigits.length
+					: newDigit.idx + 1;
 			}
 
-			if (prevDigit.value === newDigit.value && prevDigit.occurrence !== newDigit.occurrence) {
-				return newDigit.idx + 1 > newDigits.length ? newDigits.length : newDigit.idx + 1;
+			if (
+				prevDigit.value === newDigit.value &&
+				prevDigit.occurrence !== newDigit.occurrence
+			) {
+				return newDigit.idx + 1 > newDigits.length
+					? newDigits.length
+					: newDigit.idx + 1;
 			}
 
 			if (prevDigit.value !== newDigit.value) {
-				return newDigit.idx + 1 > newDigits.length ? newDigits.length : newDigit.idx + 1;
+				return newDigit.idx + 1 > newDigits.length
+					? newDigits.length
+					: newDigit.idx + 1;
 			}
 		}
 	} else {
@@ -80,8 +90,6 @@ const findNewCaretPosition = (prevDigits: Digit[], newDigits: Digit[]): number |
 			}
 		}
 	}
-
-
 };
 
 const objectsEqual = (a: any, b: any) => {
@@ -92,15 +100,14 @@ const objectsEqual = (a: any, b: any) => {
 	}
 };
 
-const COUNTRY_CODE: CountryCode = "NO";
+const COUNTRY_CODE: CountryCode = "US";
 
 type PhoneInputProps = {
 	defaultPhoneNumber?: string;
 	onChange: (phoneNumber: string) => void;
-}
+};
 
 function PhoneInput(props: PhoneInputProps) {
-
 	const { onChange, defaultPhoneNumber = "" } = props;
 
 	// State
@@ -113,8 +120,10 @@ function PhoneInput(props: PhoneInputProps) {
 
 	// Effects
 	useEffect(() => {
-
-		const formatted = formatIncompletePhoneNumber(defaultPhoneNumber, COUNTRY_CODE);
+		const formatted = formatIncompletePhoneNumber(
+			defaultPhoneNumber,
+			COUNTRY_CODE,
+		);
 		const formattedDigits = parseToDigits(formatted);
 
 		if (inputRef.current) {
@@ -128,9 +137,7 @@ function PhoneInput(props: PhoneInputProps) {
 
 		setCaret(formatted.length);
 		setDigits(formattedDigits);
-
 	}, []);
-
 
 	useEffect(() => {
 		setTimeout(() => {
@@ -148,10 +155,13 @@ function PhoneInput(props: PhoneInputProps) {
 	// Events
 	const handleInputChange = (newInputValue: string) => {
 		if (inputRef.current) {
-			const formattedInputValue = formatIncompletePhoneNumber(newInputValue, COUNTRY_CODE);
+			const formattedInputValue = formatIncompletePhoneNumber(
+				newInputValue,
+				COUNTRY_CODE,
+			);
 			const newDigits = parseToDigits(formattedInputValue);
-			const newDigitsClean = newDigits.filter(d => isDigit(d.value));
-			const prevDigitsClean = digits.filter(d => isDigit(d.value));
+			const newDigitsClean = newDigits.filter((d) => isDigit(d.value));
+			const prevDigitsClean = digits.filter((d) => isDigit(d.value));
 
 			if (objectsEqual(newDigitsClean, prevDigitsClean)) {
 				return;
@@ -167,6 +177,11 @@ function PhoneInput(props: PhoneInputProps) {
 			} else {
 				setCaret(newInputValue.length);
 			}
+			if (newCaretPosition === caret) {
+				// This won't trigger the useEffect, so manually update the keyboard's caret.
+				// The keyboard internally increases the caret with 1, so it MUST be manually set.
+				keyboardRef.current?.setCaretPosition(caret, caret);
+			}
 		}
 	};
 
@@ -176,18 +191,19 @@ function PhoneInput(props: PhoneInputProps) {
 
 	return (
 		<>
-			<input type="tel" placeholder="Tel" ref={inputRef} onClick={handleInputClick} />
+			<input
+				type="tel"
+				placeholder="Tel"
+				ref={inputRef}
+				onClick={handleInputClick}
+			/>
 			<KeyboardReact
-				keyboardRef={r => keyboardRef.current = r}
+				keyboardRef={(r) => (keyboardRef.current = r)}
 				onChange={handleInputChange}
 				layout={{
-					default: [
-						"1 2 3",
-						"4 5 6",
-						"7 8 9",
-						"{bksp} 0 {enter}",
-					],
-				}} />
+					default: ["1 2 3", "4 5 6", "7 8 9", "{bksp} 0 {enter}"],
+				}}
+			/>
 		</>
 	);
 }
