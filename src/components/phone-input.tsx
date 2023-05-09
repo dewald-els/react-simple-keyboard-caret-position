@@ -21,12 +21,16 @@ const findUpdateType = (prevInput: string, newInput: string) => {
 	}
 };
 
-const getOffset = (input: string, caret: number) => {
+const getOffset = (input: string, caret: number, checkNextChar = true) => {
 	const slice = input.slice(0, caret);
-	const specialCharsBefore = slice.replace(/[0-9]/g, "").length;
-	console.log("next char", input[caret + 1]);
-	const nextCharSpecialOffset = input[caret + 1] ? uncleanInput(input[caret + 1]).length : 0;
-	return nextCharSpecialOffset + specialCharsBefore;
+	const specialCharsBefore = uncleanInput(slice).length;
+	if (checkNextChar) {
+		console.log("next char ", input[caret + 1], " on caret ", caret);
+		const nextCharSpecialOffset = input[caret + 1] ? uncleanInput(input[caret + 1] ?? "").length : 0;
+		return nextCharSpecialOffset + specialCharsBefore;
+	} else {
+		return specialCharsBefore;
+	}
 };
 
 enum UpdateType {
@@ -39,9 +43,7 @@ const PhoneInput = () => {
 
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const keyboardRef = useRef<SimpleKeyboard | null>(null);
-
 	const [caret, setCaret] = useState<number>(0);
-	const [currentOffset, setCurrentOffset] = useState<number>(0);
 
 	useEffect(() => {
 		setTimeout(() => {
@@ -73,7 +75,7 @@ const PhoneInput = () => {
 				console.log("insert");
 				let potentialCaret = caret + 1;
 
-				const prevOffset = getOffset(prevFormattedInput, caret);
+				const prevOffset = getOffset(prevFormattedInput, caret, false);
 				const newOffset = getOffset(formattedInput, potentialCaret);
 
 				console.log("currentCaret", caret);
@@ -83,7 +85,8 @@ const PhoneInput = () => {
 				console.log("newOffset", newOffset);
 
 				potentialCaret += newOffset - prevOffset;
-				if (potentialCaret === caret) { // Won't trigger the useEffect. 
+				if (potentialCaret === caret) { // Won't trigger the useEffect.
+					console.log("caret is the same as prev caret.");
 					setTimeout(() => {
 						keyboardRef.current?.setCaretPosition(caret);
 						inputRef.current?.setSelectionRange(caret, caret);
