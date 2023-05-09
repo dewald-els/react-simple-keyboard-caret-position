@@ -46,10 +46,11 @@ const PhoneInput = () => {
 	useEffect(() => {
 		setTimeout(() => {
 			if (inputRef.current) {
-				inputRef.current?.setSelectionRange(caret, caret);
+				inputRef.current.setSelectionRange(caret, caret);
+				inputRef.current.focus();
 			}
 			if (keyboardRef.current) {
-				keyboardRef.current?.setCaretPosition(caret, caret);
+				keyboardRef.current.setCaretPosition(caret, caret);
 			}
 		}, 10);
 	}, [caret]);
@@ -82,8 +83,15 @@ const PhoneInput = () => {
 				console.log("newOffset", newOffset);
 
 				potentialCaret += newOffset - prevOffset;
-
-				setCaret(potentialCaret);
+				if (potentialCaret === caret) { // Won't trigger the useEffect. 
+					setTimeout(() => {
+						keyboardRef.current?.setCaretPosition(caret);
+						inputRef.current?.setSelectionRange(caret, caret);
+						inputRef.current?.focus();
+					}, 10);
+				} else {
+					setCaret(potentialCaret);
+				}
 			} else if (updateType === UpdateType.Delete) {
 				console.log("delete");
 			} else {
